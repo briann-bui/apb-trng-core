@@ -17,16 +17,7 @@ an output FIFO.
 
 ## Architecture
 
-```text
-GF180 Ring Oscillators
-        -> 2-FF Synchronizers
-        -> Source Health Tests and Quarantine
-        -> XOR/Round-robin Mixer
-        -> RCT/APT
-        -> Von Neumann and Conditioner
-        -> Output FIFO
-        -> APB or Streaming Output
-```
+![APB TRNG architecture](docs/Architecture.png)
 
 ## Build and Verification
 
