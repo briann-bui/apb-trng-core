@@ -1,0 +1,15 @@
+obj_dir/
+work/
+sim/
+reports/
+*.log
+*.vcd
+*.fst
+transcript
+modelsim.ini
+*.wlf
+*.ucdb
+tr_db.log
+.rtl_filelist.f
+.rtl_gf180_filelist.f
+wlft*/
