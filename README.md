@@ -43,11 +43,8 @@ make run UVM_TEST=apb_trng_health_test
 ```text
 rtl/          TRNG RTL and SHA-256 core
 uvm/          UVM environment and testbenches
-constraints/  GF180 RO and CDC constraints
-docs/         Architecture and block-diagram documentation
+docs/         Architecture diagram
 ```
-
-See [docs/README.md](docs/README.md) for the detailed architecture.
 
 > RTL simulation does not certify entropy quality. Silicon characterization
 > across PVT corners and entropy-source assessment are required before tapeout.
