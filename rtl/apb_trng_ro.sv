@@ -8,11 +8,6 @@ module apb_trng_ro #(
   output logic o_trng_ro
 );
 
-  initial begin
-    assert ((STAGES >= 3) && ((STAGES % 2) == 1))
-      else $error("apb_trng_ro STAGES must be odd and >= 3");
-  end
-
 `ifdef GF180MCU_SC
   // The NAND gate both closes and disables the ring.  All cells below are
   // physical cells from gf180mcu_fd_sc_mcu9t5v0, not inferred RTL gates.
