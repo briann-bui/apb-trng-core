@@ -1,15 +1,24 @@
-obj_dir/
-work/
-sim/
+# Synopsys-generated work and reports
 reports/
-*.log
-*.vcd
-*.fst
-transcript
-modelsim.ini
-*.wlf
-*.ucdb
+csrc/
+simv
+simv.daidir/
+DVEfiles/
+AN.DB/
+novas.conf
+novas.rc
+verdiLog/
+ucli.key
+vc_hdrs.h
 tr_db.log
-.rtl_filelist.f
-.rtl_gf180_filelist.f
-wlft*/
+spyglass.log
+
+# Common simulation artifacts
+*.log
+*.vpd
+*.vcd
+*.fsdb
+*.wlf
+*.vstf
+*.ucdb
+transcript

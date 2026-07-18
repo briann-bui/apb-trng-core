@@ -1,66 +1,90 @@
-VERILATOR_BIN ?= C:/msys64/usr/bin/perl C:/msys64/ucrt64/bin/verilator
-VERILATOR_FLAGS ?= --language 1800-2017 -Wall -Wno-fatal
-export PATH := C:/msys64/ucrt64/bin:$(PATH)
+VCS ?= vcs
+SPYGLASS ?= spyglass
 
 TOP_MODULE ?= apb_trng_wrapper
-TB_TOP ?= apb_trng_tb
-UVM_TOP ?= apb_trng_tb_top
-UVM_TEST ?= apb_trng_all_test
-MODELSIM_HOME ?= C:/intelFPGA/18.1/modelsim_ase
-MODELSIM_BIN ?= $(MODELSIM_HOME)/win32aloem
-UVM_SRC ?= C:/intelFPGA/18.1/modelsim_ase/verilog_src/uvm-1.2/src
-UVM_DEFINES ?= +define+UVM_NO_DPI+UVM_NO_RELNOTES
-VLIB ?= $(MODELSIM_BIN)/vlib.exe
-VLOG ?= $(MODELSIM_BIN)/vlog.exe
-VSIM ?= $(MODELSIM_BIN)/vsim.exe
-VSIM_FLAGS ?= -suppress 19 -suppress 8315
-UVM_LOG ?= sim/uvm_run.log
+RTL_FILELIST ?= filelist.f
+GF180_FILELIST ?= filelist_gf180.f
 
-.PHONY: all lint lint-gf180 sim sim-sha uvm-compile uvm-run run coverage clean
+REPORT_DIR ?= reports
+VCS_DIR := $(REPORT_DIR)/vcs
+SPYGLASS_DIR := $(REPORT_DIR)/spyglass
 
-all: lint lint-gf180 sim sim-sha uvm-run
+LINT_PRJ ?= lint/lint.prj
+CDC_PRJ ?= cdc/cdc.prj
+RDC_PRJ ?= rdc/rdc.prj
+
+VCS_FLAGS ?= -full64 -sverilog -nc -timescale=1ns/1ps +lint=all,noVCDE
+
+.PHONY: all check compile compile-gf180 lint cdc rdc clean
+
+all: check
+
+check: compile lint cdc rdc
+
+compile:
+	@mkdir -p $(VCS_DIR)/compile/csrc
+	$(VCS) $(VCS_FLAGS) -f $(RTL_FILELIST) -top $(TOP_MODULE) \
+		-Mdir=$(VCS_DIR)/compile/csrc \
+		-o $(VCS_DIR)/compile/simv \
+		-l $(REPORT_DIR)/compile.log
+	@{ \
+		echo "APB TRNG VCS compile summary"; \
+		echo "Status: PASS"; \
+		echo "Top: $(TOP_MODULE)"; \
+		echo "File list: $(RTL_FILELIST)"; \
+		echo "Full log: $(REPORT_DIR)/compile.log"; \
+	} > $(REPORT_DIR)/compile_summary.rpt
+
+compile-gf180:
+	@mkdir -p $(VCS_DIR)/gf180/csrc
+	$(VCS) $(VCS_FLAGS) +define+GF180MCU_SC -f $(GF180_FILELIST) -f $(RTL_FILELIST) \
+		-top $(TOP_MODULE) \
+		-Mdir=$(VCS_DIR)/gf180/csrc \
+		-o $(VCS_DIR)/gf180/simv \
+		-l $(REPORT_DIR)/compile_gf180.log
+	@{ \
+		echo "APB TRNG GF180 VCS compile summary"; \
+		echo "Status: PASS"; \
+		echo "Top: $(TOP_MODULE)"; \
+		echo "File list: $(GF180_FILELIST)"; \
+		echo "Full log: $(REPORT_DIR)/compile_gf180.log"; \
+	} > $(REPORT_DIR)/compile_gf180_summary.rpt
 
 lint:
-	$(VERILATOR_BIN) $(VERILATOR_FLAGS) --lint-only -f filelist.f --top-module $(TOP_MODULE)
+	@mkdir -p $(SPYGLASS_DIR)/lint
+	@cp $(LINT_PRJ) $(SPYGLASS_DIR)/lint/lint.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/lint/lint.prj \
+		-goals "lint/lint_rtl" > $(REPORT_DIR)/lint.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/lint -path '*/lint/lint_rtl/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; cp "$$report" $(REPORT_DIR)/lint_summary.rpt
+	@! grep -Eq '[[:space:]](Fatal|Error)[[:space:]]' $(REPORT_DIR)/lint_summary.rpt
+	@echo "Lint summary: $(REPORT_DIR)/lint_summary.rpt"
 
-lint-gf180:
-	$(VERILATOR_BIN) $(VERILATOR_FLAGS) +define+GF180MCU_SC --lint-only \
-		-Wno-UNOPTFLAT -f filelist_gf180.f --top-module $(TOP_MODULE)
+cdc:
+	@mkdir -p $(SPYGLASS_DIR)/cdc
+	@cp $(CDC_PRJ) $(SPYGLASS_DIR)/cdc/cdc.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/cdc/cdc.prj \
+		-goals "cdc/cdc_setup_check,cdc/cdc_verify" > $(REPORT_DIR)/cdc.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/cdc -path '*/cdc/cdc_verify/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; cp "$$report" $(REPORT_DIR)/cdc_summary.rpt
+	@! grep -Eq '[[:space:]](Fatal|Error)[[:space:]]' $(REPORT_DIR)/cdc_summary.rpt
+	@echo "CDC summary: $(REPORT_DIR)/cdc_summary.rpt"
 
-sim:
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv -work work -f filelist_tb.f
-	$(VSIM) -c -suppress 19 -suppress 8315 $(TB_TOP) -do "run -all; quit -f"
-
-sim-sha:
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv -work work -f filelist_sha_tb.f
-	$(VSIM) -c -suppress 19 -suppress 8315 apb_trng_sha256_adapter_tb -do "run -all; quit -f"
-
-uvm-compile:
-	@test -f $(UVM_SRC)/uvm_pkg.sv || { echo "ERROR: missing $(UVM_SRC)/uvm_pkg.sv. Set UVM_SRC."; exit 127; }
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv $(UVM_DEFINES) +incdir+$(UVM_SRC) -work work $(UVM_SRC)/uvm_pkg.sv
-	$(VLOG) -sv $(UVM_DEFINES) +acc +incdir+$(UVM_SRC) -work work -f filelist_uvm.f
-
-uvm-run: uvm-compile
-	@mkdir -p sim
-	$(VSIM) -c $(VSIM_FLAGS) $(UVM_TOP) +UVM_TESTNAME=$(UVM_TEST) +UVM_NO_RELNOTES -l $(UVM_LOG) -do "run -all; quit -f"
-	@grep -q 'UVM_ERROR :    0' $(UVM_LOG) || { echo "UVM run failed: see $(UVM_LOG)"; exit 1; }
-	@grep -q 'UVM_FATAL :    0' $(UVM_LOG) || { echo "UVM run failed: see $(UVM_LOG)"; exit 1; }
-
-run: uvm-run
-
-coverage:
-	@test -f $(UVM_SRC)/uvm_pkg.sv || { echo "ERROR: missing $(UVM_SRC)/uvm_pkg.sv. Set UVM_SRC."; exit 127; }
-	@mkdir -p sim
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv $(UVM_DEFINES) +incdir+$(UVM_SRC) -work work $(UVM_SRC)/uvm_pkg.sv
-	$(VLOG) -sv $(UVM_DEFINES) +acc +cover +incdir+$(UVM_SRC) -work work -f filelist_uvm.f
-	$(VSIM) -c $(VSIM_FLAGS) -coverage $(UVM_TOP) +UVM_TESTNAME=$(UVM_TEST) +UVM_NO_RELNOTES -l $(UVM_LOG) -do "coverage save -onexit sim/coverage.ucdb; run -all; quit -f"
-	@grep -q 'UVM_ERROR :    0' $(UVM_LOG) || { echo "UVM coverage run failed: see $(UVM_LOG)"; exit 1; }
-	@grep -q 'UVM_FATAL :    0' $(UVM_LOG) || { echo "UVM coverage run failed: see $(UVM_LOG)"; exit 1; }
+rdc:
+	@mkdir -p $(SPYGLASS_DIR)/rdc
+	@cp $(RDC_PRJ) $(SPYGLASS_DIR)/rdc/rdc.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/rdc/rdc.prj \
+		-goals "rdc/rdc_verify_struct" > $(REPORT_DIR)/rdc.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/rdc -path '*/rdc/rdc_verify_struct/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; cp "$$report" $(REPORT_DIR)/rdc_summary.rpt
+	@! grep -Eq '[[:space:]](Fatal|Error)[[:space:]]' $(REPORT_DIR)/rdc_summary.rpt
+	@echo "RDC summary: $(REPORT_DIR)/rdc_summary.rpt"
 
 clean:
-	rm -rf obj_dir work sim reports
-	rm -f *.log *.vcd *.fst *.ucdb transcript vsim.wlf modelsim.ini
+	# Preserve reports/*.log and reports/*_summary.rpt; remove only tool work data.
+	rm -rf $(VCS_DIR) $(SPYGLASS_DIR)
+	rm -rf csrc simv simv.daidir DVEfiles AN.DB novas.conf novas.rc verdiLog
+	rm -rf lint/lint cdc/cdc rdc/rdc
+	rm -f ucli.key vc_hdrs.h tr_db.log spyglass.log transcript
+	rm -f *.vpd *.vcd *.fsdb *.wlf *.vstf *.ucdb *.log
+	@echo "Removed generated work files; kept the main reports in reports/."

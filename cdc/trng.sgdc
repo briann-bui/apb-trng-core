@@ -1,0 +1,3 @@
+current_design apb_trng_wrapper
+clock -name apb_trng_wrapper.i_trng_pclk -domain PCLK -period 20 -waveform {0 10}
+reset -name apb_trng_wrapper.i_trng_presetn -value 0
