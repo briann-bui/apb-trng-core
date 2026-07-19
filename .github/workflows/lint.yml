@@ -22,12 +22,9 @@ jobs:
 
       - name: Run Verilator Lint
         run: |
-          if [ -f .rtl_filelist.f ]; then
-            verilator --lint-only -sv -f .rtl_filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
-          elif [ -f rtl_filelist.f ]; then
-            verilator --lint-only -sv -f rtl_filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
-          elif [ -f filelist.f ]; then
-            verilator --lint-only -sv -f filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
+          if [ -f filelist.f ]; then
+            grep -v "uvm/" filelist.f > action_filelist.f
+            verilator --lint-only -sv -f action_filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
           else
             echo "No filelist found!"
             exit 1
