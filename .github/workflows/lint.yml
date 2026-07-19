@@ -1,0 +1,34 @@
+﻿name: RTL Linting
+
+on:
+  push:
+    paths:
+      - 'rtl/**'
+      - 'inc/**'
+      - 'uvm/**'
+      - '.github/workflows/lint.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Run Verilator Lint
+        run: |
+          if [ -f .rtl_filelist.f ]; then
+            verilator --lint-only -sv -f .rtl_filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
+          elif [ -f rtl_filelist.f ]; then
+            verilator --lint-only -sv -f rtl_filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
+          elif [ -f filelist.f ]; then
+            verilator --lint-only -sv -f filelist.f -Wno-fatal -Wno-lint -Wno-style -Wno-SYMRSVDWORD
+          else
+            echo "No filelist found!"
+            exit 1
+          fi

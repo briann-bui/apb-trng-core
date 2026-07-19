@@ -1,4 +1,6 @@
-# APB TRNG Core for GF180MCU
+﻿# APB TRNG Core for GF180MCU
+
+[![RTL Lint](https://github.com/briann-bui/apb-trng-core/actions/workflows/lint.yml/badge.svg)](https://github.com/briann-bui/apb-trng-core/actions/workflows/lint.yml)
 
 An APB True Random Number Generator using multiple GF180 ring oscillators as
 physical entropy sources, with online health tests, entropy conditioning, and
@@ -48,3 +50,4 @@ docs/         Architecture diagram
 
 > RTL simulation does not certify entropy quality. Silicon characterization
 > across PVT corners and entropy-source assessment are required before tapeout.
+
